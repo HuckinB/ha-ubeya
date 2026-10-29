@@ -4,10 +4,11 @@ An **experimental, read-only** Home Assistant integration for employee shifts,
 timesheets and earnings in Ubeya Crew.
 
 > [!IMPORTANT]
-> This is a **public beta candidate** (v0.5.0b1), not a stable release.
-> release. A user has confirmed live SMS login, live calendar shifts and
-> successful reconnect after a Home Assistant restart. Long-running access
-> token renewal is still unverified, and this is an unofficial API integration.
+> This is an **unofficial public beta**, not a stable release. Live SMS login,
+> calendar shifts, and reconnect after Home Assistant restart have been
+> confirmed. Long-running access token renewal is still unverified.
+> The optional Apple Calendar subscription is new in the 0.6.0b1 preview
+> and needs live Home Assistant and Apple Calendar testing.
 
 This is a community project, not endorsed by or affiliated with Ubeya.
 The Crew API is undocumented and may change without notice. Never share
@@ -17,6 +18,8 @@ entries in issue reports.
 ## What currently works
 
 - Native Home Assistant calendar with shift times, role, venue and notes.
+- Optional, private, read-only iCalendar feed for subscribing from Apple
+  Calendar or another calendar client (0.6.0b1 preview).
 - Upcoming shift, position, monthly shift and scheduled-hours sensors.
 - Next shift location, estimated gross pay, and rolling seven-day shift totals.
 - Weekly and last-30-day approved earnings summaries.
@@ -35,7 +38,18 @@ entries in issue reports.
 - Original two-colour shift-and-clock icon bundled locally for both light and
   dark Home Assistant UI themes (with standard light-image fallback).
 
-## Install this development build
+## Install through HACS
+
+1. Open HACS → three-dot menu → **Custom repositories**.
+2. Add `https://github.com/HuckinB/ha-ubeya` as category **Integration**.
+3. Find and download **Ubeya** (enable prerelease/beta versions if needed).
+4. Restart Home Assistant, then add Ubeya under **Settings → Devices & services**.
+
+The public `v0.5.0b1` beta release includes the read-only shifts, sensors,
+and earnings. The Apple Calendar subscription is being developed for
+`v0.6.0b1` and is not included in that release yet.
+
+## Manual development installation
 
 1. Copy `custom_components/ubeya/` into your Home Assistant configuration's
    `custom_components/ubeya/` directory.
@@ -49,8 +63,39 @@ config entry. To switch to live data, add a **second Ubeya** configuration via
 Add integration and select Live. After confirming it works, remove the demo
 entry to eliminate the example calendar and sensors.
 
-The `hacs.json` and repository layout are prepared for HACS/Marketplace, but
-this alpha is not published or available from the catalog.
+HACS custom-repository installation works without inclusion in the default
+HACS catalog. GitHub releases are available in this repository.
+
+## Subscribe to shifts from Apple Calendar (0.6 preview)
+
+The optional feed exports only the shifts returned by your configured Ubeya
+account. It does not write events to Ubeya or iCloud, and it does not expose
+Home Assistant's normal user API tokens. Apple Calendar determines how often
+to refresh the feed, so changes are **not instant**.
+
+1. Verify your Home Assistant instance has an HTTPS address reachable from
+   outside your network. If a proxy or access gateway blocks unauthenticated
+   requests, the feed path must be accessible to Apple Calendar separately.
+   Do not disable authentication for your whole Home Assistant instance.
+2. Under **Settings → Devices & services → Ubeya → Configure**, enable the
+   calendar subscription and enter the external HTTPS *base URL* of your
+   Home Assistant, e.g. `https://home.example.com` (no trailing path).
+3. Optionally include internal shift notes or estimated gross pay. Both are
+   disabled by default because Apple/iCloud will receive that information.
+4. Copy the newly generated URL on the confirmation screen and select Submit.
+5. On iPhone, open **Calendar → Calendars → Add Calendar →
+   Add Subscription Calendar**, paste the URL, and choose **iCloud** as account.
+   The calendar can then appear on your other Apple devices.
+
+Keep your subscription URL secret: anyone with it can read the included shift
+information without logging in. You can reopen Configure to copy the current
+link, rotate it to revoke a leaked/old link, or disable the feed to revoke
+access entirely. The secret URL may also appear in reverse-proxy request logs
+or calendar-service records; do not post it in bug reports.
+
+The feed uses stable event IDs so that subscribed calendar clients can update
+or remove shifts as the source data changes. A failed Ubeya API refresh does
+not deliberately replace the feed with an empty calendar.
 
 ## Entities
 
@@ -115,10 +160,13 @@ Ubeya's HTTPS API hosts. Never upload raw HA config entries to bug reports.
 - `demo.py` provides small, synthetic API-shaped data for testing.
 - `coordinator.py` shares one snapshot among all entities, updated every 15 min.
 - `calendar.py`, `sensor.py`, `binary_sensor.py` expose standard HA platforms.
+- `calendar_feed.py` serves the optional token-protected ICS feed and
+  `ics.py` renders standards-compliant, escaped and folded iCalendar events.
 - `auth.py` isolates cookie storage for each live Ubeya account.
 - `api.py` manages the known Ubeya authentication and read-only API calls.
 - `config_flow.py` offers demo setup, experimental human-assisted SMS linking,
-  and a reauthentication flow on expired refresh credentials.
+  a reauthentication flow on expired refresh credentials, and an options
+  flow to enable, view or rotate the private subscription link.
 - `diagnostics.py` exports only anonymous record counts and connection mode.
 - `brand/icon.png` and `brand/icon@2x.png` are the local integration icons.
 
@@ -184,12 +232,12 @@ python3 -m unittest discover -s tests -v
 python3 -m compileall -q custom_components/ubeya
 ```
 
-Before a public HACS release, test in a real Home Assistant 2026.10+ environment,
+Before releasing the next beta, test in a real Home Assistant 2026.10+ environment,
 verify one-hour automatic refresh and reauthentication, run hassfest and HACS
 validation, verify local branding display and translation coverage,
 and validate API changes without sharing credentials in logs or issues. The
-repository layout is HACS-compatible, but it is **not** registered in the public
-HACS catalog, and no GitHub release has been published by this project.
+repository is HACS-custom-repository compatible and has public GitHub
+prereleases, but it is **not** registered in the default HACS catalog.
 
 ## License and affiliation
 

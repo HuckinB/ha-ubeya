@@ -3,9 +3,10 @@
   "name": "Ubeya",
   "codeowners": ["@HuckinB"],
   "config_flow": true,
+  "dependencies": ["http"],
   "documentation": "https://github.com/HuckinB/ha-ubeya",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/HuckinB/ha-ubeya/issues",
   "requirements": [],
-  "version": "0.5.0b1"
+  "version": "0.6.0b1"
 }

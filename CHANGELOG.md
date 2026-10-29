@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0b1 — Apple Calendar subscription preview
+
+- Add a private, revocable iCalendar feed for live and demo Ubeya shifts.
+- Enable and manage the subscription URL in the integration's Configure screen.
+- Keep earnings and internal shift notes out of the feed by default; both are
+  individually opt-in.
+- Retain stable event identifiers across updates and cancellations.
+- Require a user-supplied external HTTPS address and a random capability token.
+- No changes to Ubeya login, polling, or read-only API access.
+
 ## 0.5.0b1 — First public beta candidate
 
 - Package the verified live shift and pay sensors, local branding, and

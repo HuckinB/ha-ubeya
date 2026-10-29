@@ -7,11 +7,18 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from .auth import new_session
+from .calendar_feed import UbeyaCalendarFeedView
 from .const import CONF_COOKIES, CONF_MODE, MODE_LIVE
 from .coordinator import UbeyaCoordinator
 
 
 PLATFORMS = [Platform.CALENDAR, Platform.SENSOR, Platform.BINARY_SENSOR]
+
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Register the read-only feed once, before account entries load."""
+    hass.http.register_view(UbeyaCalendarFeedView)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

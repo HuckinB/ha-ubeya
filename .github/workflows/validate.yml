@@ -1,0 +1,65 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  model-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install test dependencies
+        run: python -m pip install 'aiohttp>=3.9,<4'
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Compile integration
+        run: python -m compileall -q custom_components/ubeya
+
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+
+  publish-beta:
+    name: Publish public beta after validation
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [model-tests, hassfest, hacs]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Publish one prerelease for this beta version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python3 -c 'import json; print(json.load(open("custom_components/ubeya/manifest.json"))["version"])')"
+          TAG="v${VERSION}"
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists, leaving it untouched."
+            exit 0
+          fi
+          ZIP="ha-ubeya-${VERSION}.zip"
+          zip -r "${ZIP}" custom_components hacs.json README.md LICENSE CHANGELOG.md \
+            -x '*/__pycache__/*' '*.pyc'
+          gh release create "${TAG}" "${ZIP}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --prerelease \
+            --title "Ubeya ${VERSION} — public beta" \
+            --notes-file docs/BETA_RELEASE_NOTES.md

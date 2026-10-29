@@ -1,0 +1,43 @@
+{
+  "title": "Ubeya",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Ubeya Crew",
+        "menu_options": {
+          "live": "Live Ubeya Crew account (experimental)",
+          "demo": "Synthetic demo account"
+        }
+      },
+      "demo": {
+        "title": "Try Ubeya with example data",
+        "description": "Creates example shifts and earnings only. No Ubeya login or network requests will be made."
+      },
+      "live": {
+        "title": "Ubeya Crew phone number",
+        "description": "Enter your phone number in international format with country code (for example, 447xxxxxxxxx). On the next screen, request a fresh SMS on the official Ubeya Crew website, ideally in a private browser window. Ubeya's reCAPTCHA must be completed on its own website.",
+        "data": { "phone": "Phone number" }
+      },
+      "otp": {
+        "title": "Verify with Ubeya Crew",
+        "description": "Visit https://crew.ubeya.com/ in a private browser window and request a new login SMS. Complete Ubeya's reCAPTCHA there. **Do not submit the SMS code on the Ubeya site.** Enter that fresh code here instead. This cross-client login method is experimental and may not be accepted by Ubeya. Never share the code with anyone or paste it into a support message.",
+        "data": { "code": "SMS verification code" }
+      },
+      "reauth_confirm": {
+        "title": "Reconnect Ubeya Crew",
+        "description": "Ubeya's session has expired. Request a fresh SMS through Ubeya's official site, then enter it in Home Assistant to reconnect."
+      }
+    },
+    "error": {
+      "invalid_phone": "Enter an international phone number using digits and a country code.",
+      "invalid_code": "Ubeya rejected this code or it is invalid or expired. Request a fresh one on the official site.",
+      "cannot_connect": "Could not reach Ubeya. Try again later.",
+      "invalid_response": "Ubeya did not provide usable session cookies. Its sign-in flow may not support this method."
+    },
+    "abort": {
+      "already_configured": "This Ubeya account is already configured",
+      "wrong_account": "The phone number does not match the configured Ubeya account",
+      "reauth_successful": "Ubeya Crew reconnected successfully"
+    }
+  }
+}

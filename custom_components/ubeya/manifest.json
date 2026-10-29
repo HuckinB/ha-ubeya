@@ -1,0 +1,11 @@
+{
+  "domain": "ubeya",
+  "name": "Ubeya",
+  "version": "0.5.0b1",
+  "config_flow": true,
+  "documentation": "https://github.com/HuckinB/ha-ubeya",
+  "issue_tracker": "https://github.com/HuckinB/ha-ubeya/issues",
+  "codeowners": ["@HuckinB"],
+  "iot_class": "cloud_polling",
+  "requirements": []
+}

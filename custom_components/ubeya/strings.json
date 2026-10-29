@@ -39,5 +39,27 @@
       "wrong_account": "The phone number does not match the configured Ubeya account",
       "reauth_successful": "Ubeya Crew reconnected successfully"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Apple Calendar subscription",
+        "description": "Current subscription URL: {feed_url}\n\nEnable a private, read-only calendar feed for Apple Calendar and other iCalendar apps. Use an HTTPS address accessible from the internet. Treat the subscription URL like a password; anyone who knows it can see your shifts. Turning this off or rotating the URL revokes the old link. Notes and earnings are excluded by default.",
+        "data": {
+          "calendar_feed_enabled": "Enable calendar subscription",
+          "calendar_feed_base_url": "External Home Assistant URL (HTTPS)",
+          "calendar_feed_include_notes": "Include shift notes and event instructions",
+          "calendar_feed_include_earnings": "Include estimated gross pay",
+          "rotate_feed_token": "Revoke existing link and generate a new one"
+        }
+      },
+      "confirm": {
+        "title": "Your private calendar URL",
+        "description": "Copy this URL before selecting Submit: {feed_url}\n\nOn your iPhone, open Calendar → Calendars → Add Calendar → Add Subscription Calendar. Paste the URL and choose iCloud as the account. Apple's refresh interval is outside Home Assistant's control. Keep this URL private."
+      }
+    },
+    "error": {
+      "invalid_feed_url": "Enter your public HTTPS Home Assistant address without a path or query."
+    }
   }
 }

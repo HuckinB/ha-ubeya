@@ -4,15 +4,31 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from hashlib import sha256
+import secrets
 from typing import Any
+from urllib.parse import urlsplit
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.config_entries import ConfigFlowResult, SOURCE_REAUTH
+from homeassistant.config_entries import ConfigEntry, ConfigFlowResult, SOURCE_REAUTH
+from homeassistant.core import callback
 
 from .api import UbeyaAuthenticationError, UbeyaClient, UbeyaConnectionError, UbeyaError
 from .auth import export_cookies, has_session_cookies, new_session
-from .const import CONF_COOKIES, CONF_MODE, CONF_PHONE, DOMAIN, MODE_DEMO, MODE_LIVE
+from .calendar_feed import subscription_url
+from .const import (
+    CONF_COOKIES,
+    CONF_FEED_ENABLED,
+    CONF_FEED_INCLUDE_EARNINGS,
+    CONF_FEED_INCLUDE_NOTES,
+    CONF_FEED_TOKEN,
+    CONF_FEED_URL,
+    CONF_MODE,
+    CONF_PHONE,
+    DOMAIN,
+    MODE_DEMO,
+    MODE_LIVE,
+)
 
 
 def normalize_phone(value: str) -> str:
@@ -32,6 +48,12 @@ class UbeyaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         self._phone: str | None = None
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> UbeyaOptionsFlow:
+        """Expose the private Apple Calendar subscription settings."""
+        return UbeyaOptionsFlow()
 
     async def async_step_user(self, user_input: dict | None = None) -> ConfigFlowResult:
         return self.async_show_menu(step_id="user", menu_options=["live", "demo"])
@@ -127,5 +149,116 @@ class UbeyaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=vol.Schema({}),
+        )
+
+
+class UbeyaOptionsFlow(config_entries.OptionsFlow):
+    """Manage an optional read-only calendar feed and its access token."""
+
+    def __init__(self) -> None:
+        self._pending_options: dict[str, Any] | None = None
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show the current link, enable/disable it or rotate its secret."""
+        options = self.config_entry.options
+        current_url = ""
+        if options.get(CONF_FEED_ENABLED) and options.get(CONF_FEED_TOKEN):
+            current_url = subscription_url(
+                options.get(CONF_FEED_URL, ""),
+                self.config_entry.entry_id,
+                options[CONF_FEED_TOKEN],
+            )
+
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            enabled = bool(user_input.get(CONF_FEED_ENABLED, False))
+            base_url = str(user_input.get(CONF_FEED_URL, "")).strip().rstrip("/")
+            if enabled:
+                try:
+                    parsed = urlsplit(base_url)
+                    valid = (
+                        parsed.scheme == "https"
+                        and bool(parsed.hostname)
+                        and parsed.username is None
+                        and parsed.password is None
+                        and parsed.path in ("", "/")
+                        and not parsed.query
+                        and not parsed.fragment
+                    )
+                except ValueError:
+                    valid = False
+                if not valid:
+                    errors["base"] = "invalid_feed_url"
+
+            if not errors:
+                token = (
+                    options.get(CONF_FEED_TOKEN, "")
+                    if enabled and not user_input.get("rotate_feed_token")
+                    else ""
+                )
+                if enabled and not token:
+                    token = secrets.token_urlsafe(32)
+                self._pending_options = {
+                    CONF_FEED_ENABLED: enabled,
+                    CONF_FEED_URL: base_url,
+                    CONF_FEED_TOKEN: token if enabled else "",
+                    CONF_FEED_INCLUDE_NOTES: bool(
+                        user_input.get(CONF_FEED_INCLUDE_NOTES, False)
+                    ),
+                    CONF_FEED_INCLUDE_EARNINGS: bool(
+                        user_input.get(CONF_FEED_INCLUDE_EARNINGS, False)
+                    ),
+                }
+                if not enabled:
+                    # Disabling revokes the existing URL immediately.
+                    return self.async_create_entry(data=self._pending_options)
+                return await self.async_step_confirm()
+
+        default_url = options.get(CONF_FEED_URL) or self.hass.config.external_url or ""
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema({
+                vol.Required(
+                    CONF_FEED_ENABLED,
+                    default=options.get(CONF_FEED_ENABLED, False),
+                ): bool,
+                vol.Optional(CONF_FEED_URL, default=default_url): str,
+                vol.Required(
+                    CONF_FEED_INCLUDE_NOTES,
+                    default=options.get(CONF_FEED_INCLUDE_NOTES, False),
+                ): bool,
+                vol.Required(
+                    CONF_FEED_INCLUDE_EARNINGS,
+                    default=options.get(CONF_FEED_INCLUDE_EARNINGS, False),
+                ): bool,
+                vol.Required("rotate_feed_token", default=False): bool,
+            }),
+            errors=errors,
+            description_placeholders={
+                "feed_url": current_url or "Not enabled",
+            },
+        )
+
+    async def async_step_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show the link before saving it; the user must confirm."""
+        options = self._pending_options
+        if options is None or not options.get(CONF_FEED_ENABLED):
+            return await self.async_step_init()
+        if user_input is not None:
+            return self.async_create_entry(data=options)
+        return self.async_show_form(
+            step_id="confirm",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "feed_url": subscription_url(
+                    options[CONF_FEED_URL],
+                    self.config_entry.entry_id,
+                    options[CONF_FEED_TOKEN],
+                ),
+            },
         )
 

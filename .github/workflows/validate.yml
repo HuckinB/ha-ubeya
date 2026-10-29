@@ -30,6 +30,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: hacs/action@main
+        with:
+          category: integration
 
   publish-beta:
     name: Publish public beta after validation

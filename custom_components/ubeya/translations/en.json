@@ -20,7 +20,7 @@
       },
       "otp": {
         "title": "Verify with Ubeya Crew",
-        "description": "Visit https://crew.ubeya.com/ in a private browser window and request a new login SMS. Complete Ubeya's reCAPTCHA there. **Do not submit the SMS code on the Ubeya site.** Enter that fresh code here instead. This cross-client login method is experimental and may not be accepted by Ubeya. Never share the code with anyone or paste it into a support message.",
+        "description": "Visit {crew_url} in a private browser window and request a new login SMS. Complete Ubeya's reCAPTCHA there. **Do not submit the SMS code on the Ubeya site.** Enter that fresh code here instead. This cross-client login method is experimental and may not be accepted by Ubeya. Never share the code with anyone or paste it into a support message.",
         "data": { "code": "SMS verification code" }
       },
       "reauth_confirm": {

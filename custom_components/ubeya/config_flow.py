@@ -109,6 +109,7 @@ class UbeyaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="otp",
             data_schema=vol.Schema({vol.Required("code"): str}),
             errors=errors,
+            description_placeholders={"crew_url": "https://crew.ubeya.com/"},
         )
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:

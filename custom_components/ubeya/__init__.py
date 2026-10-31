@@ -26,6 +26,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     session = new_session(entry.data[CONF_COOKIES]) if entry.data.get(CONF_MODE) == MODE_LIVE else None
     coordinator = UbeyaCoordinator(hass, entry, session)
     try:
+        await coordinator.async_load_approvals()
         await coordinator.async_config_entry_first_refresh()
     except Exception:
         await coordinator.async_close()

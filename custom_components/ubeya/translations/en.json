@@ -43,14 +43,16 @@
   "options": {
     "step": {
       "init": {
-        "title": "Apple Calendar subscription",
+        "title": "Calendar and payday settings",
         "description": "Current subscription URL: {feed_url}\n\nEnable a private, read-only calendar feed for Apple Calendar and other iCalendar apps. Use an HTTPS address accessible from the internet. Treat the subscription URL like a password; anyone who knows it can see your shifts. Turning this off or rotating the URL revokes the old link. Notes and earnings are excluded by default.",
         "data": {
           "calendar_feed_enabled": "Enable calendar subscription",
           "calendar_feed_base_url": "External Home Assistant URL (HTTPS)",
           "calendar_feed_include_notes": "Include shift notes and event instructions",
           "calendar_feed_include_earnings": "Include estimated gross pay",
-          "rotate_feed_token": "Revoke existing link and generate a new one"
+          "rotate_feed_token": "Revoke existing link and generate a new one",
+          "pay_period_start": "First day of a known fortnightly pay period (YYYY-MM-DD, optional)",
+          "payday_offset_days": "Days from pay-period start until payday"
         }
       },
       "confirm": {
@@ -59,7 +61,8 @@
       }
     },
     "error": {
-      "invalid_feed_url": "Enter your public HTTPS Home Assistant address without a path or query."
+      "invalid_feed_url": "Enter your public HTTPS Home Assistant address without a path or query.",
+      "invalid_pay_period_start": "Enter a valid date in YYYY-MM-DD format."
     }
   }
 }

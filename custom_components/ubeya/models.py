@@ -6,8 +6,8 @@ money calculations can be tested independently of a running HA instance.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from dataclasses import dataclass, replace
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_EVEN
 from typing import Any, Mapping
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -184,6 +184,44 @@ class UbeyaSnapshot:
             if t.id not in paid_ids and t.end is not None and t.end <= now
         )
 
+    def shift_for_payroll(self, record: PayrollRecord) -> Shift | None:
+        return next((s for s in self.shifts if s.timesheet_id == record.timesheet_id), None)
+
+    def unapproved_completed_shifts(self, now: datetime) -> tuple[Shift, ...]:
+        """Completed shifts with a timesheet but no payroll (approval not guaranteed)."""
+        paid = {p.timesheet_id for p in self.payroll}
+        return tuple(
+            s for s in self.shifts
+            if s.end <= now and s.timesheet_id is not None and s.timesheet_id not in paid
+        )
+
+    def earnings_for_pay_period(self, start: date, end: date) -> Decimal:
+        """Use shift dates, not payroll publication dates, for pay cycles."""
+        return sum((p.value for p in self.payroll
+                    if (s := self.shift_for_payroll(p)) is not None
+                    and start <= s.start.date() < end), ZERO)
+
+
+def pay_period_for(day: date, anchor: date, offset_days: int) -> tuple[date, date, date]:
+    """Fortnightly [start, end) cycle and its corresponding payday."""
+    index = (day - anchor).days // 14
+    start = anchor + timedelta(days=index * 14)
+    return start, start + timedelta(days=14), start + timedelta(days=offset_days)
+
+
+def next_pay_period(day: date, anchor: date, offset_days: int) -> tuple[date, date, date]:
+    """The earliest configured pay date which has not passed."""
+    start, end, payday = pay_period_for(day, anchor, offset_days)
+    while payday < day:
+        start += timedelta(days=14)
+        end += timedelta(days=14)
+        payday += timedelta(days=14)
+    while payday - timedelta(days=14) >= day:
+        start -= timedelta(days=14)
+        end -= timedelta(days=14)
+        payday -= timedelta(days=14)
+    return start, end, payday
+
 
 def normalize(
     bookings: Mapping[str, Any],
@@ -261,6 +299,8 @@ def normalize(
         # Historical shifts are only present in /timesheets/history.
         if shift_id not in normalized_shifts:
             normalized_shifts[shift_id] = build_shift(shift_raw, booking=None, timesheet_id=int(raw["id"]))
+        elif normalized_shifts[shift_id].timesheet_id is None:
+            normalized_shifts[shift_id] = replace(normalized_shifts[shift_id], timesheet_id=int(raw["id"]))
 
     normalized_payroll = []
     for raw in _rows(payroll):

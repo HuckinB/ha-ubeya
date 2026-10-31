@@ -23,6 +23,9 @@ entries in issue reports.
 - Upcoming shift, position, monthly shift and scheduled-hours sensors.
 - Next shift location, estimated gross pay, and rolling seven-day shift totals.
 - Weekly and last-30-day approved earnings summaries.
+- Completed shifts without payroll and provisional pending earnings (not proof of employer approval state).
+- Last newly detected payroll approval, amount and detection timestamp for user-defined Home Assistant automations.
+- Optional configurable fortnightly payday and approved/pending gross earnings for that pay cycle.
 - Approved earnings and paid-hours sensors, using Ubeya's reported payroll
   `value` and `aggregatedHours` instead of guessing payslips.
 - Upcoming gross pay estimate when a simple hourly rate is available; excludes
@@ -120,6 +123,14 @@ not deliberately replace the feed with an empty calendar.
 | Sensor | Approved earnings this year |
 | Sensor | Estimated upcoming earnings this month |
 | Sensor | Last sync |
+| Sensor | Shifts awaiting approval (candidates) |
+| Sensor | Earnings awaiting approval (estimated) |
+| Sensor | Last approved shift |
+| Sensor | Last approved income |
+| Sensor | Last approval time |
+| Sensor | Next payday |
+| Sensor | Confirmed income next payday |
+| Sensor | Pending income next payday |
 | Binary sensor | Scheduled on shift |
 
 Entity IDs are assigned by Home Assistant and may differ from the names above.
@@ -129,6 +140,25 @@ net pay, tax deductions or the date money reaches a bank account. Weekly totals
 use Monday through Sunday according to Home Assistant's configured timezone.
 The next-shift and upcoming monthly estimates are provisional hourly-rate
 calculations; they cannot predict unpaid breaks, overtime or payroll changes.
+
+### Payday sensors and approval automations
+
+Under **Ubeya → Configure**, optionally set the first day of a known fortnightly
+pay period (`YYYY-MM-DD`) and the number of days from its start to its payday.
+For example, a period beginning 2026-10-10 with a payday on 2026-11-06 uses
+an offset of 27 days. Leave the start date blank to disable payday totals.
+
+The **Last approval time** timestamp changes when a previously unseen payroll
+timesheet appears; it can trigger your own HA notification automation. Existing
+records are treated as a baseline on first install, and the seen record IDs and
+last detected approval are saved across restarts. If several records appear in
+one 15-minute refresh, the sensor shows the newest one, not one event per record.
+Approval time means *detected by Home Assistant*, not the employer's approval time.
+
+Pending earnings are provisional and may be unknown when a rate is unavailable.
+Missing payroll alone cannot prove that an employer is still reviewing a shift.
+Payday totals are calculated from shifts in the pay period, not payroll record
+publication dates; these are not bank deposits or take-home pay.
 
 ## Live-account test (experimental)
 

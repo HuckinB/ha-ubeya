@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import date
 from hashlib import sha256
 import secrets
 from typing import Any
@@ -25,6 +26,8 @@ from .const import (
     CONF_FEED_URL,
     CONF_MODE,
     CONF_PHONE,
+    CONF_PAY_PERIOD_START,
+    CONF_PAYDAY_OFFSET_DAYS,
     DOMAIN,
     MODE_DEMO,
     MODE_LIVE,
@@ -175,6 +178,12 @@ class UbeyaOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             enabled = bool(user_input.get(CONF_FEED_ENABLED, False))
             base_url = str(user_input.get(CONF_FEED_URL, "")).strip().rstrip("/")
+            pay_anchor = str(user_input.get(CONF_PAY_PERIOD_START, "")).strip()
+            if pay_anchor:
+                try:
+                    date.fromisoformat(pay_anchor)
+                except ValueError:
+                    errors[CONF_PAY_PERIOD_START] = "invalid_pay_period_start"
             if enabled:
                 try:
                     parsed = urlsplit(base_url)
@@ -210,6 +219,8 @@ class UbeyaOptionsFlow(config_entries.OptionsFlow):
                     CONF_FEED_INCLUDE_EARNINGS: bool(
                         user_input.get(CONF_FEED_INCLUDE_EARNINGS, False)
                     ),
+                    CONF_PAY_PERIOD_START: pay_anchor,
+                    CONF_PAYDAY_OFFSET_DAYS: int(user_input.get(CONF_PAYDAY_OFFSET_DAYS, 27)),
                 }
                 if not enabled:
                     # Disabling revokes the existing URL immediately.
@@ -234,6 +245,10 @@ class UbeyaOptionsFlow(config_entries.OptionsFlow):
                     default=options.get(CONF_FEED_INCLUDE_EARNINGS, False),
                 ): bool,
                 vol.Required("rotate_feed_token", default=False): bool,
+                vol.Optional(CONF_PAY_PERIOD_START,
+                    default=options.get(CONF_PAY_PERIOD_START, "")): str,
+                vol.Required(CONF_PAYDAY_OFFSET_DAYS,
+                    default=options.get(CONF_PAYDAY_OFFSET_DAYS, 27)): vol.All(vol.Coerce(int), vol.Range(min=0, max=90)),
             }),
             errors=errors,
             description_placeholders={

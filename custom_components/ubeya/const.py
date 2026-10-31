@@ -20,3 +20,7 @@ AUTH_API = "https://auth.api.ubeya.com"
 
 UPDATE_INTERVAL_MINUTES = 15
 
+CONF_PAY_PERIOD_START = "pay_period_start"
+CONF_PAYDAY_OFFSET_DAYS = "payday_offset_days"
+PAY_PERIOD_DAYS = 14
+

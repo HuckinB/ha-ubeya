@@ -14,7 +14,7 @@ COMPONENT = Path(__file__).resolve().parents[1] / "custom_components" / "ubeya"
 sys.path.insert(0, str(COMPONENT))
 
 from demo import build_demo_responses  # noqa: E402
-from models import money, normalize  # noqa: E402
+from models import money, normalize, next_pay_period, pay_period_for  # noqa: E402
 
 
 class UbeyaModelTests(unittest.TestCase):
@@ -98,6 +98,22 @@ class UbeyaModelTests(unittest.TestCase):
         snapshot = self.make_snapshot(now)
         historical = next(s for s in snapshot.shifts if s.id == 3)
         self.assertIsNone(historical.estimated_earnings)
+
+    def test_payday_anchor_and_next_cycle(self):
+        anchor = date(2026, 10, 10)
+        self.assertEqual((date(2026, 10, 10), date(2026, 10, 24), date(2026, 11, 6)),
+                         pay_period_for(date(2026, 10, 23), anchor, 27))
+        self.assertEqual(date(2026, 11, 6), next_pay_period(date(2026, 10, 31), anchor, 27)[2])
+        self.assertEqual(date(2026, 11, 20), next_pay_period(date(2026, 11, 7), anchor, 27)[2])
+
+    def test_payroll_association_and_unapproved_shifts(self):
+        now = datetime(2026, 10, 29, 12, tzinfo=ZoneInfo("Europe/London"))
+        snapshot = self.make_snapshot(now)
+        record = snapshot.payroll[0]
+        self.assertIsNotNone(snapshot.shift_for_payroll(record))
+        shift = snapshot.shift_for_payroll(record)
+        self.assertEqual(record.value,
+                         snapshot.earnings_for_pay_period(shift.start.date(), shift.start.date() + timedelta(days=1)))
 
 
 if __name__ == "__main__":

@@ -48,6 +48,7 @@ class UbeyaClient:
         params: dict[str, Any] | None = None,
         json_body: dict[str, Any] | None = None,
         extra_headers: dict[str, str] | None = None,
+        allow_list: bool = False,
     ) -> dict[str, Any]:
         headers = {"Accept": "application/json", "X-App-Name": "Ubeya"}
         if extra_headers:
@@ -74,6 +75,8 @@ class UbeyaClient:
                     content_type=None,
                     loads=lambda body: json.loads(body, parse_float=Decimal),
                 )
+                if allow_list and isinstance(payload, list):
+                    return {"data": payload}
                 if not isinstance(payload, dict):
                     raise UbeyaError("Unexpected Ubeya response structure")
                 return payload
@@ -94,18 +97,19 @@ class UbeyaClient:
         path: str,
         *,
         params: dict[str, Any] | None = None,
+        allow_list: bool = False,
     ) -> dict[str, Any]:
         """Retry once after one coordinated cookie refresh on HTTP 401."""
         generation = self._refresh_generation
         try:
-            return await self._raw_request("GET", f"{CREW_API}{path}", params=params)
+            return await self._raw_request("GET", f"{CREW_API}{path}", params=params, allow_list=allow_list)
         except _Unauthorized:
             async with self._refresh_lock:
                 if generation == self._refresh_generation:
                     await self._refresh()
                     self._refresh_generation += 1
             try:
-                return await self._raw_request("GET", f"{CREW_API}{path}", params=params)
+                return await self._raw_request("GET", f"{CREW_API}{path}", params=params, allow_list=allow_list)
             except _Unauthorized as error:
                 raise UbeyaAuthenticationError("Ubeya login required") from error
 
@@ -141,3 +145,7 @@ class UbeyaClient:
             self.request("/payroll"),
         )
 
+
+    async def get_audit_log(self, page_size: int = 50) -> dict[str, Any]:
+        """Recent employee-visible activity, such as an admin moving a shift."""
+        return await self.request("/audit-logs", params={"pageSize": page_size}, allow_list=True)

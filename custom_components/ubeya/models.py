@@ -6,6 +6,7 @@ money calculations can be tested independently of a running HA instance.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_EVEN
@@ -322,3 +323,97 @@ def normalize(
         payroll=tuple(sorted(normalized_payroll, key=lambda p: (p.date, p.timesheet_id))),
         fetched_at=fetched_at,
     )
+
+
+# ---------------------------------------------------------------------------
+# Audit log (rota changes made by an admin)
+# ---------------------------------------------------------------------------
+
+SHIFT_CHANGE_TYPES = frozenset({"EmployeeShiftUpdated"})
+
+
+@dataclass(frozen=True, slots=True)
+class AuditEvent:
+    """One entry of the employee-visible ``GET /audit-logs`` feed.
+
+    ``created_at`` is read as UTC (it carries no zone). Shift times inside
+    ``data`` are venue-local wall-clock times, like ``startTime`` on bookings.
+    """
+
+    id: int
+    created_at: datetime
+    type: str
+    shift_id: int | None
+    project_id: int | None
+    admin_name: str | None
+    shift_name: str | None
+    position: str | None
+    start: datetime | None
+    end: datetime | None
+
+    @property
+    def is_shift_change(self) -> bool:
+        return self.type in SHIFT_CHANGE_TYPES
+
+
+def _audit_rows(payload: Any) -> list[dict[str, Any]]:
+    """The feed has been seen as a bare list; also accept ``{"data": [...]}``."""
+    if isinstance(payload, list):
+        rows = payload
+    elif isinstance(payload, Mapping):
+        rows = payload.get("data", payload.get("logs", []))
+    else:
+        rows = []
+    return [row for row in rows if isinstance(row, Mapping)] if isinstance(rows, list) else []
+
+
+def _optional_int(value: Any) -> int | None:
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def normalize_audit_log(payload: Any, zone: ZoneInfo) -> tuple[AuditEvent, ...]:
+    """Oldest first. Malformed entries are skipped rather than failing a refresh."""
+    events: list[AuditEvent] = []
+    for raw in _audit_rows(payload):
+        event_id = _optional_int(raw.get("id"))
+        created = raw.get("createdAt")
+        if event_id is None or not created:
+            continue
+        data = raw.get("data")
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except ValueError:
+                data = {}
+        if not isinstance(data, Mapping):
+            data = {}
+
+        def local(key: str) -> datetime | None:
+            value = data.get(key)
+            if not value:
+                return None
+            try:
+                return _datetime(str(value), zone)
+            except ValueError:
+                return None
+
+        try:
+            created_at = _datetime(str(created), timezone.utc).astimezone(timezone.utc)
+        except ValueError:
+            continue
+        events.append(AuditEvent(
+            id=event_id,
+            created_at=created_at,
+            type=str(raw.get("type") or ""),
+            shift_id=_optional_int(raw.get("shiftId")),
+            project_id=_optional_int(raw.get("projectId")),
+            admin_name=data.get("adminName") or None,
+            shift_name=data.get("shiftName") or None,
+            position=data.get("positionSlug") or None,
+            start=local("startTime"),
+            end=local("endTime"),
+        ))
+    return tuple(sorted(events, key=lambda e: (e.created_at, e.id)))

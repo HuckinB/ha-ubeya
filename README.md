@@ -131,6 +131,7 @@ not deliberately replace the feed with an empty calendar.
 | Sensor | Next payday |
 | Sensor | Confirmed income next payday |
 | Sensor | Pending income next payday |
+| Sensor | Last shift change |
 | Binary sensor | Scheduled on shift |
 
 Entity IDs are assigned by Home Assistant and may differ from the names above.
@@ -159,6 +160,48 @@ Pending earnings are provisional and may be unknown when a rate is unavailable.
 Missing payroll alone cannot prove that an employer is still reviewing a shift.
 Payday totals are calculated from shifts in the pay period, not payroll record
 publication dates; these are not bank deposits or take-home pay.
+
+### Shift change alerts
+
+When an admin moves one of your shifts, Ubeya records it in your activity feed
+(`GET /audit-logs`, type `EmployeeShiftUpdated`). The integration reads that feed
+on every refresh and, for each **new** change, fires a Home Assistant event:
+
+| Event | `ubeya_shift_changed` |
+| --- | --- |
+| `shift` | Shift / event name, e.g. `KART` |
+| `position` | Your position on it |
+| `location` | Venue, when the shift is still in your bookings |
+| `start`, `end` | New times (ISO 8601, local) |
+| `previous_start`, `previous_end` | Old times, if HA saw the shift before the change; otherwise `null` |
+| `changed_by` | Name of the admin who made the change |
+| `changed_at` | When Ubeya logged it (UTC) |
+| `shift_id`, `audit_id`, `type` | Ubeya identifiers |
+
+The **Last shift change** sensor holds the newest change (timestamp state, the
+fields above as attributes, plus `recent` for the last 10). As with approvals,
+changes already in the feed at install are a baseline and are not announced, and
+seen entries are remembered across restarts. If the activity feed is temporarily
+unavailable, shift data still updates and the feed is retried on the next refresh.
+
+```yaml
+automation:
+  - alias: Ubeya shift moved
+    triggers:
+      - trigger: event
+        event_type: ubeya_shift_changed
+    actions:
+      - action: notify.mobile_app_your_phone
+        data:
+          title: "Shift changed: {{ trigger.event.data.shift }}"
+          message: >-
+            {{ as_timestamp(trigger.event.data.start) | timestamp_custom('%a %d %b %H:%M') }}–{{
+               as_timestamp(trigger.event.data.end) | timestamp_custom('%H:%M') }}
+            {% if trigger.event.data.previous_start %}(was {{
+               as_timestamp(trigger.event.data.previous_start) | timestamp_custom('%H:%M') }}–{{
+               as_timestamp(trigger.event.data.previous_end) | timestamp_custom('%H:%M') }}){% endif %}
+            {% if trigger.event.data.changed_by %}by {{ trigger.event.data.changed_by }}{% endif %}
+```
 
 ## Live-account test (experimental)
 
@@ -228,6 +271,7 @@ cookies, but **does not** independently prove one-hour token renewal.
 | `GET /locations` | Shift venue and timezone |
 | `GET /timesheets/history` | Past/future timesheet details |
 | `GET /payroll` | Employer-approved earnings |
+| `GET /audit-logs?pageSize=50` | Activity feed; `EmployeeShiftUpdated` entries drive shift change alerts. `data` is a JSON string with `startTime`, `endTime`, `shiftName`, `adminName`, `positionSlug` |
 
 Always prefer `booking.locationId` to `booking.project.locationId`, since
 individual shifts can override the event's default location. `wage.hourlyWage`

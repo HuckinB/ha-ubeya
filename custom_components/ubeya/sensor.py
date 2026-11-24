@@ -41,6 +41,7 @@ SENSOR_NAMES = {
     "next_payday": "Next payday",
     "confirmed_income_next_payday": "Confirmed income next payday",
     "pending_income_next_payday": "Pending income next payday",
+    "last_shift_change": "Last shift change",
 }
 
 MONEY_KEYS = {
@@ -70,7 +71,7 @@ class UbeyaSensor(UbeyaEntity, SensorEntity):
         if key in MONEY_KEYS:
             self._attr_device_class = SensorDeviceClass.MONETARY
             self._attr_suggested_display_precision = 2
-        elif key in {"next_shift", "last_sync", "last_approval_time", "next_payday"}:
+        elif key in {"next_shift", "last_sync", "last_approval_time", "next_payday", "last_shift_change"}:
             self._attr_device_class = SensorDeviceClass.TIMESTAMP
         if key == "last_sync":
             self._attr_entity_category = EntityCategory.DIAGNOSTIC
@@ -156,6 +157,9 @@ class UbeyaSensor(UbeyaEntity, SensorEntity):
             return float(money(sum((v for v in estimates if v is not None), ZERO)))
         if self.key == "last_sync":
             return data.fetched_at
+        if self.key == "last_shift_change":
+            change = self.coordinator.last_shift_change
+            return datetime.fromisoformat(change["changed_at"]) if change else None
         if self.key == "shifts_awaiting_approval":
             return len(pending)
         if self.key == "earnings_awaiting_approval":
@@ -183,6 +187,11 @@ class UbeyaSensor(UbeyaEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
+        if self.key == "last_shift_change":
+            change = self.coordinator.last_shift_change
+            if not change:
+                return None
+            return {**change, "recent": self.coordinator.recent_shift_changes}
         if self.key in {"last_approved_shift", "last_approved_income", "last_approval_time"}:
             return self.coordinator.last_approval
         if self.key in {"next_payday", "confirmed_income_next_payday", "pending_income_next_payday"}:

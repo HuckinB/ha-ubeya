@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.0b1 — Shift change alerts
+
+- Read the employee activity feed (`/audit-logs`) on each refresh.
+- Fire a `ubeya_shift_changed` event for every newly seen `EmployeeShiftUpdated`
+  entry, with the new times, previous times (when known), who changed it and when.
+- Add a **Last shift change** timestamp sensor with the change details and the
+  last 10 changes as attributes.
+- Treat existing feed entries as a baseline on first install; remember seen
+  entries across restarts so nothing is announced twice.
+- A failing activity feed no longer blocks shift and pay updates.
+
 ## 0.6.0b1 — Apple Calendar subscription preview
 
 - Add a private, revocable iCalendar feed for live and demo Ubeya shifts.

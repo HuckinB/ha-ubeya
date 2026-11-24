@@ -24,3 +24,7 @@ CONF_PAY_PERIOD_START = "pay_period_start"
 CONF_PAYDAY_OFFSET_DAYS = "payday_offset_days"
 PAY_PERIOD_DAYS = 14
 
+
+# Fired once per newly seen rota change from the audit log (e.g. an admin moving a shift).
+EVENT_SHIFT_CHANGED = "ubeya_shift_changed"
+AUDIT_PAGE_SIZE = 50

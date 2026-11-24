@@ -56,6 +56,20 @@ class UbeyaAPITests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("json", session.calls[1][2])
         self.assertEqual("Ubeya", session.calls[0][2]["headers"]["X-App-Name"])
 
+    async def test_audit_log_accepts_a_bare_list(self):
+        session = Session([Response(200, [{"id": 1}])])
+        client = api.UbeyaClient(session)
+        result = await client.get_audit_log(25)
+        self.assertEqual({"data": [{"id": 1}]}, result)
+        self.assertEqual("https://crew.api.ubeya.com/audit-logs", session.calls[0][1])
+        self.assertEqual({"pageSize": 25}, session.calls[0][2]["params"])
+
+    async def test_other_endpoints_still_reject_a_bare_list(self):
+        session = Session([Response(200, [{"id": 1}])])
+        client = api.UbeyaClient(session)
+        with self.assertRaises(api.UbeyaError):
+            await client.request("/bookings")
+
     async def test_failed_refresh_raises_auth_error(self):
         session = Session([Response(401), Response(401)])
         client = api.UbeyaClient(session)
